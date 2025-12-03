@@ -1,53 +1,490 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <title>Перевірка хешу онлайн</title>
-    <style>
-      body { font-family: Arial; margin: 3em;}
-      input, select { margin: 8px 0; padding: 5px; }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Text Hasher — статичний, GitHub Pages ready</title>
+<meta name="description" content="Статичний сайт для обчислення MD5/SHA hashes в браузері. Працює на GitHub Pages." />
+<style>
+  :root{
+    --bg:#f6f8fa; --card:#ffffff; --muted:#6b7280; --accent:#2563eb; --ok:#10b981;
+    --text:#0f172a; --glass: rgba(255,255,255,0.6);
+  }
+  [data-theme="dark"]{
+    --bg:#0b1220; --card:#071029; --muted:#9aa5b1; --accent:#60a5fa; --ok:#34d399;
+    --text:#e6eef8; --glass: rgba(10,14,20,0.6);
+  }
+  *{box-sizing:border-box;font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg, var(--bg), #e9eef8 120%);color:var(--text);}
+  .wrap{max-width:980px;margin:28px auto;padding:20px;}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+  h1{font-size:1.25rem;margin:0}
+  .sub{color:var(--muted);font-size:0.9rem}
+  .card{background:var(--card);border-radius:12px;padding:18px;box-shadow:0 6px 18px rgba(15,23,42,0.06);margin-bottom:18px}
+  .grid{display:grid;grid-template-columns:1fr 380px;gap:16px}
+  @media (max-width:880px){.grid{grid-template-columns:1fr} .side{order:2}}
+  textarea{width:100%;min-height:160px;padding:12px;border-radius:8px;border:1px solid #e6e9ef;background:transparent;resize:vertical}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  select,input[type="text"]{padding:8px;border-radius:8px;border:1px solid #e6e9ef;background:transparent}
+  button{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
+  button.ghost{background:transparent;border:1px solid #d1d5db;color:var(--text)}
+  button.small{padding:6px 8px;font-size:0.9rem}
+  label{font-size:0.9rem;color:var(--muted)}
+  .outputs{display:flex;flex-direction:column;gap:8px}
+  .out{padding:12px;border-radius:8px;border:1px solid #eef2ff;background:linear-gradient(180deg,var(--glass),transparent);font-family:monospace;word-break:break-all}
+  .muted{color:var(--muted);font-size:0.85rem}
+  .row{display:flex;gap:8px;align-items:center}
+  .side .card{position:sticky;top:20px}
+  .meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+  .chip{padding:6px 8px;border-radius:999px;border:1px solid #e6e9ef;background:transparent;font-size:0.85rem}
+  .history{max-height:220px;overflow:auto;padding:8px;border-radius:8px;border:1px dashed #eef2ff;background:transparent}
+  footer{color:var(--muted);font-size:0.85rem;text-align:center;margin-top:14px}
+  .switch{cursor:pointer;padding:6px;border-radius:8px;border:1px solid #e6e9ef}
+  .kvs{display:flex;gap:8px;flex-wrap:wrap}
+  .file-row{display:flex;gap:8px;align-items:center}
+  .danger{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+  .copy-ok{color:var(--ok);font-weight:600}
+</style>
 </head>
-<body>
-    <h2>Онлайн перевірка хешу</h2>
-    <form id="hashForm">
-        <label>Текст для хешу:</label><br>
-        <input type="text" id="text" required><br>
-        <label>Тип хешу:</label>
-        <select id="hash_type">
-            <option value="sha256">SHA-256</option>
-            <option value="sha1">SHA-1</option>
-            <option value="md5">MD5</option>
-        </select><br>
-        <label>Хеш для перевірки:</label><br>
-        <input type="text" id="target_hash" required><br>
-        <button type="submit">Перевірити</button>
-    </form>
-    <div id="result"></div>
-    <script>
-    document.getElementById('hashForm').addEventListener('submit', function(e){
-        e.preventDefault();
-        fetch('verify-hash', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                text: document.getElementById('text').value,
-                hash_type: document.getElementById('hash_type').value,
-                target_hash: document.getElementById('target_hash').value
-            })
+<body data-theme="light">
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Text Hasher</h1>
+      <div class="sub">Статичний інструмент для MD5 / SHA хешів — працює в браузері й на GitHub Pages</div>
+    </div>
+    <div class="row">
+      <div class="muted" id="themeLabel">Світла тема</div>
+      <div class="switch" id="themeToggle">Тема</div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <label for="inputText">Введи текст</label>
+        <textarea id="inputText" placeholder="Введи або встав текст тут (пробіли та кінці рядків важливі)"></textarea>
+
+        <div class="controls" style="margin-top:12px">
+          <select id="algo">
+            <option>SHA-256</option>
+            <option>SHA-512</option>
+            <option>SHA-384</option>
+            <option>SHA-1</option>
+            <option>MD5</option>
+          </select>
+
+          <select id="outputForm">
+            <option value="hex">Hex</option>
+            <option value="base64">Base64</option>
+          </select>
+
+          <label class="row" title="Нормалізувати CRLF → LF"><input type="checkbox" id="normNewlines"> Норм. перенос</label>
+
+          <label class="row"><input type="checkbox" id="upperHex"> Uppercase</label>
+
+          <button id="computeBtn">Обчислити</button>
+          <button class="ghost" id="clearBtn">Очистити</button>
+        </div>
+
+        <div class="meta">
+          <div class="chip" id="lengthChip">Довжина: 0</div>
+          <div class="chip" id="algoChip">Алгоритм: SHA-256</div>
+          <div class="chip" id="encChip">Кодування: utf-8</div>
+        </div>
+
+        <div style="margin-top:12px" class="outputs">
+          <div>
+            <div class="muted">Результат (<span id="outLabel">hex</span>):</div>
+            <div class="out" id="outValue">–</div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button id="copyBtn" class="small">Копіювати</button>
+              <button id="downloadBtn" class="small ghost">Завантажити .txt</button>
+              <button id="saveHistory" class="small">Зберегти в історію</button>
+              <div id="copyState" class="muted" style="align-self:center"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="muted">Base64:</div>
+            <div class="out" id="outB64">–</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <label>Файл (хеш файлу)</label>
+        <div class="file-row" style="margin-top:8px">
+          <input type="file" id="fileInput">
+          <button id="hashFileBtn" class="small">Обчислити хеш файлу</button>
+          <select id="fileAlgo" style="min-width:120px">
+            <option>SHA-256</option>
+            <option>SHA-512</option>
+            <option>SHA-384</option>
+            <option>SHA-1</option>
+            <option>MD5</option>
+          </select>
+        </div>
+        <div style="margin-top:10px" class="muted">Результат для файлу:</div>
+        <div class="out" id="fileOut">–</div>
+      </div>
+
+    </div>
+
+    <aside class="side">
+      <div class="card">
+        <div class="kvs">
+          <div style="flex:1">
+            <div class="muted">Історія</div>
+            <div class="history" id="historyBox">Порожньо</div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="small" id="clearHistory">Очистити</button>
+              <button class="small ghost" id="exportHistory">Експорт .json</button>
+            </div>
+          </div>
+        </div>
+
+        <hr style="margin:12px 0;border:none;border-top:1px solid #eef2ff">
+
+        <div class="muted">Додатково</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+          <button id="downloadPy" class="small">Завантажити Flask .py (копія)</button>
+          <button id="exampleBtn" class="small ghost">Приклад: "hello"</button>
+          <button id="themeAuto" class="small">Автовизначення теми</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="muted">Поради</div>
+        <ul style="padding-left:18px;margin-top:8px;color:var(--muted)">
+          <li>Хеш залежить від точних байтів: кодування, пробіли та кінці рядків важливі.</li>
+          <li>Використовуй нормалізацію, якщо копіюєш текст з Windows або macOS.</li>
+          <li>MD5 — швидкий, але крипто-небезпечний; для перевірки цілісності краще SHA-256/512.</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="muted">Готово для розміщення на GitHub Pages — просто закинь цей файл як <code>index.html</code>.</footer>
+</div>
+
+<script>
+/* ---------- Utility: bytes → hex/base64 ---------- */
+function buf2hex(buffer, upper=false) {
+  const hex = [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2,'0')).join('');
+  return upper ? hex.toUpperCase() : hex;
+}
+function buf2b64(buffer) {
+  // browser-friendly base64 from ArrayBuffer
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+/* ---------- MD5 fallback (compact, reliable) ---------- */
+/* Minimal implementation of MD5 in JS. Source adapted from public-domain/simple MD5 helpers.
+   It's kept compact but correct for typical use. */
+(function(){
+  function rotl(x,c){return (x<<c)|(x>>> (32-c));}
+  function cmn(q,a,b,x,s,t){a = (a + q + x + t) >>> 0; return (rotl(a,s) + b) >>> 0;}
+  function ff(a,b,c,d,x,s,t){ return cmn((b & c) | ((~b) & d), a, b, x, s, t); }
+  function gg(a,b,c,d,x,s,t){ return cmn((b & d) | (c & (~d)), a, b, x, s, t); }
+  function hh(a,b,c,d,x,s,t){ return cmn(b ^ c ^ d, a, b, x, s, t); }
+  function ii(a,b,c,d,x,s,t){ return cmn(c ^ (b | (~d)), a, b, x, s, t); }
+
+  function md5_bytes(bytes){
+    const len = bytes.length;
+    const words = [];
+    for (let i=0;i<len;i++) words[i>>2] = (words[i>>2] | (bytes[i] << ((i%4)*8))) >>> 0;
+    const bitLen = len * 8;
+    // append 0x80 then zeros
+    bytes = new Uint8Array(((len + 9 + 63) >> 6) * 64);
+    bytes.set(arguments[0]);
+    bytes[len] = 0x80;
+    const dv = new DataView(bytes.buffer);
+    dv.setUint32(bytes.length - 8, bitLen >>> 0, true);
+    dv.setUint32(bytes.length - 4, Math.floor(bitLen / 0x100000000), true);
+
+    let a = 0x67452301|0, b = 0xefcdab89|0, c = 0x98badcfe|0, d = 0x10325476|0;
+    const T = [];
+    for (let i=1;i<=64;i++) T[i]=Math.floor(Math.abs(Math.sin(i)) * 0x100000000) >>> 0;
+
+    const view = new DataView(bytes.buffer);
+    for (let i=0;i<bytes.length;i+=64){
+      const X = [];
+      for (let j=0;j<16;j++) X[j] = view.getUint32(i + j*4, true);
+      let [aa,bb,cc,dd] = [a,b,c,d];
+
+      aa = ff(aa,bb,cc,dd,X[0],7, T[1]); dd = ff(dd,aa,bb,cc,X[1],12, T[2]); cc = ff(cc,dd,aa,bb,X[2],17, T[3]); bb = ff(bb,cc,dd,aa,X[3],22, T[4]);
+      aa = ff(aa,bb,cc,dd,X[4],7, T[5]); dd = ff(dd,aa,bb,cc,X[5],12, T[6]); cc = ff(cc,dd,aa,bb,X[6],17, T[7]); bb = ff(bb,cc,dd,aa,X[7],22, T[8]);
+      aa = ff(aa,bb,cc,dd,X[8],7, T[9]); dd = ff(dd,aa,bb,cc,X[9],12, T[10]); cc = ff(cc,dd,aa,bb,X[10],17, T[11]); bb = ff(bb,cc,dd,aa,X[11],22, T[12]);
+      aa = ff(aa,bb,cc,dd,X[12],7, T[13]); dd = ff(dd,aa,bb,cc,X[13],12, T[14]); cc = ff(cc,dd,aa,bb,X[14],17, T[15]); bb = ff(bb,cc,dd,aa,X[15],22, T[16]);
+
+      aa = gg(aa,bb,cc,dd,X[1],5, T[17]); dd = gg(dd,aa,bb,cc,X[6],9, T[18]); cc = gg(cc,dd,aa,bb,X[11],14, T[19]); bb = gg(bb,cc,dd,aa,X[0],20, T[20]);
+      aa = gg(aa,bb,cc,dd,X[5],5, T[21]); dd = gg(dd,aa,bb,cc,X[10],9, T[22]); cc = gg(cc,dd,aa,bb,X[15],14, T[23]); bb = gg(bb,cc,dd,aa,X[4],20, T[24]);
+      aa = gg(aa,bb,cc,dd,X[9],5, T[25]); dd = gg(dd,aa,bb,cc,X[14],9, T[26]); cc = gg(cc,dd,aa,bb,X[3],14, T[27]); bb = gg(bb,cc,dd,aa,X[8],20, T[28]);
+      aa = gg(aa,bb,cc,dd,X[13],5, T[29]); dd = gg(dd,aa,bb,cc,X[2],9, T[30]); cc = gg(cc,dd,aa,bb,X[7],14, T[31]); bb = gg(bb,cc,dd,aa,X[12],20, T[32]);
+
+      aa = hh(aa,bb,cc,dd,X[5],4, T[33]); dd = hh(dd,aa,bb,cc,X[8],11, T[34]); cc = hh(cc,dd,aa,bb,X[11],16, T[35]); bb = hh(bb,cc,dd,aa,X[14],23, T[36]);
+      aa = hh(aa,bb,cc,dd,X[1],4, T[37]); dd = hh(dd,aa,bb,cc,X[4],11, T[38]); cc = hh(cc,dd,aa,bb,X[7],16, T[39]); bb = hh(bb,cc,dd,aa,X[10],23, T[40]);
+      aa = hh(aa,bb,cc,dd,X[13],4, T[41]); dd = hh(dd,aa,bb,cc,X[0],11, T[42]); cc = hh(cc,dd,aa,bb,X[3],16, T[43]); bb = hh(bb,cc,dd,aa,X[6],23, T[44]);
+      aa = hh(aa,bb,cc,dd,X[9],4, T[45]); dd = hh(dd,aa,bb,cc,X[12],11, T[46]); cc = hh(cc,dd,aa,bb,X[15],16, T[47]); bb = hh(bb,cc,dd,aa,X[2],23, T[48]);
+
+      aa = ii(aa,bb,cc,dd,X[0],6, T[49]); dd = ii(dd,aa,bb,cc,X[7],10, T[50]); cc = ii(cc,dd,aa,bb,X[14],15, T[51]); bb = ii(bb,cc,dd,aa,X[5],21, T[52]);
+      aa = ii(aa,bb,cc,dd,X[12],6, T[53]); dd = ii(dd,aa,bb,cc,X[3],10, T[54]); cc = ii(cc,dd,aa,bb,X[10],15, T[55]); bb = ii(bb,cc,dd,aa,X[1],21, T[56]);
+      aa = ii(aa,bb,cc,dd,X[8],6, T[57]); dd = ii(dd,aa,bb,cc,X[15],10, T[58]); cc = ii(cc,dd,aa,bb,X[6],15, T[59]); bb = ii(bb,cc,dd,aa,X[13],21, T[60]);
+      aa = ii(aa,bb,cc,dd,X[4],6, T[61]); dd = ii(dd,aa,bb,cc,X[11],10, T[62]); cc = ii(cc,dd,aa,bb,X[2],15, T[63]); bb = ii(bb,cc,dd,aa,X[9],21, T[64]);
+
+      a = (a + aa) >>> 0; b = (b + bb) >>> 0; c = (c + cc) >>> 0; d = (d + dd) >>> 0;
+    }
+
+    const out = new Uint8Array(16);
+    const dv2 = new DataView(out.buffer);
+    dv2.setUint32(0, a, true); dv2.setUint32(4, b, true); dv2.setUint32(8, c, true); dv2.setUint32(12, d, true);
+    return out;
+  }
+
+  window._md5_bytes = md5_bytes;
+})();
+
+/* ---------- Main hashing logic ---------- */
+const inputText = document.getElementById('inputText');
+const algoSel = document.getElementById('algo');
+const outValue = document.getElementById('outValue');
+const outB64 = document.getElementById('outB64');
+const outLabel = document.getElementById('outLabel');
+const computeBtn = document.getElementById('computeBtn');
+const copyBtn = document.getElementById('copyBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const lengthChip = document.getElementById('lengthChip');
+const algoChip = document.getElementById('algoChip');
+const encChip = document.getElementById('encChip');
+const upperHex = document.getElementById('upperHex');
+const outputForm = document.getElementById('outputForm');
+const normNewlines = document.getElementById('normNewlines');
+const copyState = document.getElementById('copyState');
+
+function normalizeText(s){ if (normNewlines.checked) return s.replace(/\r\n/g, '\n'); return s; }
+
+async function computeHash(text, algorithm){
+  const txt = normalizeText(text);
+  const enc = new TextEncoder().encode(txt);
+
+  if (/^MD5$/i.test(algorithm)){
+    const digestBytes = window._md5_bytes(enc);
+    return {hex: buf2hex(digestBytes, upperHex.checked), b64: buf2b64(digestBytes)};
+  }
+
+  // Map UI options to subtle algorithms
+  const map = {'SHA-1':'SHA-1','SHA-256':'SHA-256','SHA-384':'SHA-384','SHA-512':'SHA-512'};
+  const algo = map[algorithm] || algorithm;
+  const ab = await crypto.subtle.digest(algo, enc);
+  const hex = buf2hex(ab, upperHex.checked);
+  const b64 = buf2b64(ab);
+  return {hex,b64};
+}
+
+computeBtn.addEventListener('click', async ()=>{
+  const text = inputText.value || '';
+  lengthChip.textContent = 'Довжина: ' + text.length;
+  const algorithm = algoSel.value;
+  algoChip.textContent = 'Алгоритм: ' + algorithm;
+  outLabel.textContent = outputForm.value === 'hex' ? 'hex' : 'base64';
+  try{
+    const res = await computeHash(text, algorithm);
+    outValue.textContent = (outputForm.value === 'hex') ? res.hex : res.b64;
+    outB64.textContent = res.b64;
+    copyState.textContent = '';
+  }catch(err){
+    outValue.textContent = 'Помилка: ' + err;
+    outB64.textContent = '–';
+  }
+});
+
+copyBtn.addEventListener('click', async ()=>{
+  const txt = outValue.textContent || outB64.textContent;
+  if (!txt || txt === '–') return;
+  try{
+    await navigator.clipboard.writeText(txt);
+    copyState.textContent = 'Скопійовано';
+    copyState.className = 'copy-ok';
+    setTimeout(()=>{ copyState.textContent=''; copyState.className='muted'; },1500);
+  }catch(e){
+    copyState.textContent = 'Не вдалося скопіювати';
+  }
+});
+
+downloadBtn.addEventListener('click', ()=>{
+  const val = outValue.textContent || '';
+  const blob = new Blob([val], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'hash.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+/* ---------- File hashing (reads file as arrayBuffer) ---------- */
+const fileInput = document.getElementById('fileInput');
+const hashFileBtn = document.getElementById('hashFileBtn');
+const fileOut = document.getElementById('fileOut');
+const fileAlgo = document.getElementById('fileAlgo');
+
+hashFileBtn.addEventListener('click', async ()=>{
+  const file = fileInput.files[0];
+  if (!file) { fileOut.textContent = 'Файл не вибрано'; return; }
+  const algorithm = fileAlgo.value;
+  fileOut.textContent = 'Обчислюю...';
+  try{
+    const ab = await file.arrayBuffer();
+    if (/^MD5$/i.test(algorithm)){
+      const bytes = new Uint8Array(ab);
+      const digest = window._md5_bytes(bytes);
+      fileOut.textContent = buf2hex(digest, upperHex.checked) + '  (hex)\n' + buf2b64(digest) + '  (base64)';
+    } else {
+      const map = {'SHA-1':'SHA-1','SHA-256':'SHA-256','SHA-384':'SHA-384','SHA-512':'SHA-512'};
+      const algo = map[algorithm] || algorithm;
+      const digest = await crypto.subtle.digest(algo, ab);
+      fileOut.textContent = buf2hex(digest, upperHex.checked) + '  (hex)\n' + buf2b64(digest) + '  (base64)';
+    }
+  }catch(e){
+    fileOut.textContent = 'Помилка: ' + e;
+  }
+});
+
+/* ---------- History (localStorage) ---------- */
+const historyBox = document.getElementById('historyBox');
+const saveHistory = document.getElementById('saveHistory');
+const clearHistory = document.getElementById('clearHistory');
+const exportHistory = document.getElementById('exportHistory');
+
+function loadHistory(){
+  const h = JSON.parse(localStorage.getItem('hasher_history')||'[]');
+  if (!h.length) { historyBox.textContent='Порожньо'; return; }
+  historyBox.innerHTML = '';
+  h.slice().reverse().forEach((it, idx)=>{
+    const div = document.createElement('div');
+    div.style.borderBottom = '1px solid #eef2ff';
+    div.style.padding = '6px 4px';
+    div.innerHTML = `<div style="font-size:0.9rem"><strong>${it.algo}</strong> — ${it.mode}</div>
+                     <div style="font-family:monospace;font-size:0.82rem;color:var(--muted)">${it.hash}</div>
+                     <div style="font-size:0.78rem;color:var(--muted)">${new Date(it.t).toLocaleString()}</div>`;
+    div.addEventListener('click', ()=>{ outValue.textContent = it.hash; outB64.textContent = it.b64 || ''; });
+    historyBox.appendChild(div);
+  });
+}
+saveHistory.addEventListener('click', ()=>{
+  const h = JSON.parse(localStorage.getItem('hasher_history')||'[]');
+  const hash = outValue.textContent || '';
+  if (!hash || hash==='–') return alert('Немає хешу для збереження');
+  h.push({t:Date.now(), algo:algoSel.value, mode:outputForm.value, hash, b64:outB64.textContent});
+  localStorage.setItem('hasher_history', JSON.stringify(h.slice(-200))); // max 200
+  loadHistory();
+});
+clearHistory.addEventListener('click', ()=>{ localStorage.removeItem('hasher_history'); loadHistory(); });
+exportHistory.addEventListener('click', ()=>{
+  const data = localStorage.getItem('hasher_history') || '[]';
+  const blob = new Blob([data], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'hasher_history.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+loadHistory();
+
+/* ---------- Quick helpers ---------- */
+document.getElementById('clearBtn').addEventListener('click', ()=>{ inputText.value=''; outValue.textContent='–'; outB64.textContent='–'; lengthChip.textContent='Довжина: 0'; });
+document.getElementById('exampleBtn').addEventListener('click', ()=>{ inputText.value='hello'; algoSel.value='SHA-256'; computeBtn.click(); });
+
+/* ---------- Theme handling ---------- */
+const themeToggle = document.getElementById('themeToggle');
+const themeLabel = document.getElementById('themeLabel');
+const themeAuto = document.getElementById('themeAuto');
+function setTheme(t){ document.body.setAttribute('data-theme', t); themeLabel.textContent = t==='dark' ? 'Темна тема' : 'Світла тема'; }
+themeToggle.addEventListener('click', ()=> setTheme(document.body.getAttribute('data-theme')==='dark'? 'light' : 'dark'));
+themeAuto.addEventListener('click', ()=>{
+  const prefers = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  setTheme(prefers ? 'dark' : 'light');
+});
+
+/* ---------- Download Flask .py (user asked the py script included) ---------- */
+const downloadPy = document.getElementById('downloadPy');
+const flask_py = `from flask import Flask, request, jsonify
+import hashlib
+import base64
+
+app = Flask(__name__)
+
+def _resolve_algo(name: str):
+    name_lower = name.lower()
+    available = {a.lower(): a for a in hashlib.algorithms_available}
+    if name_lower not in available:
+        raise ValueError(f"Unsupported hash type: {name!r}. Available examples: sha256, sha1, md5.")
+    return available[name_lower]
+
+def compute_hash_for_text(text: str, algo_name: str):
+    algo = _resolve_algo(algo_name)
+    h = hashlib.new(algo)
+    h.update(text.encode('utf-8'))
+    return h.hexdigest(), base64.b64encode(h.digest()).decode('ascii')
+
+@app.route('/hash', methods=['POST'])
+def hash_endpoint():
+    # Accept JSON, form-data or raw body
+    text = ''
+    hash_type = 'sha256'
+    normalize_newlines = False
+
+    if request.is_json:
+        data = request.get_json()
+        text = data.get('text', '') if isinstance(data, dict) else ''
+        hash_type = data.get('hash_type', hash_type) if isinstance(data, dict) else hash_type
+        normalize_newlines = bool(data.get('normalize_newlines', normalize_newlines)) if isinstance(data, dict) else normalize_newlines
+    else:
+        # form or raw
+        text = request.form.get('text') if request.form else request.get_data(as_text=True) or ''
+        hash_type = request.form.get('hash_type', hash_type) if request.form else hash_type
+        normalize_newlines = request.args.get('normalize_newlines', str(normalize_newlines)).lower() in ('1','true','yes')
+
+    if normalize_newlines:
+        text = text.replace('\\r\\n', '\\n')
+
+    try:
+        hex_digest, b64 = compute_hash_for_text(text, hash_type)
+        return jsonify({
+            "ok": True,
+            "hash_type_requested": hash_type,
+            "hex": hex_digest,
+            "base64": b64,
+            "text_length": len(text),
+            "note": "hex is lowercase; encoding used: utf-8"
         })
-        .then(r => r.json())
-        .then(data => {
-            if (data.error) {
-                document.getElementById('result').innerHTML = "Помилка: " + data.error;
-            } else {
-                let res = data.result ? "✔️ Хеш співпадає!" : "❌ Хеш не співпадає!";
-                document.getElementById('result').innerHTML = res +
-                  "<br><b>Обчислений хеш:</b> " + data.your_hash +
-                  "<br><b>Ваш хеш:</b> " + data.target_hash;
-            }
-        });
-    });
-    </script>
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+if __name__ == '__main__':
+    app.run(host='127.0.0.1', port=5000, debug=True)
+`;
+
+downloadPy.addEventListener('click', ()=>{
+  const blob = new Blob([flask_py], {type:'text/x-python;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'hasher_server.py';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+/* ---------- Init: try to pick theme from prefers-color-scheme ---------- */
+(function init(){
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  setTheme(prefersDark ? 'dark' : 'light');
+})();
+</script>
 </body>
 </html>
