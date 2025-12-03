@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Перевірка хешу онлайн</title>
+    <style>
+      body { font-family: Arial; margin: 3em;}
+      input, select { margin: 8px 0; padding: 5px; }
+    </style>
+</head>
+<body>
+    <h2>Онлайн перевірка хешу</h2>
+    <form id="hashForm">
+        <label>Текст для хешу:</label><br>
+        <input type="text" id="text" required><br>
+        <label>Тип хешу:</label>
+        <select id="hash_type">
+            <option value="sha256">SHA-256</option>
+            <option value="sha1">SHA-1</option>
+            <option value="md5">MD5</option>
+        </select><br>
+        <label>Хеш для перевірки:</label><br>
+        <input type="text" id="target_hash" required><br>
+        <button type="submit">Перевірити</button>
+    </form>
+    <div id="result"></div>
+    <script>
+    document.getElementById('hashForm').addEventListener('submit', function(e){
+        e.preventDefault();
+        fetch('verify-hash', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                text: document.getElementById('text').value,
+                hash_type: document.getElementById('hash_type').value,
+                target_hash: document.getElementById('target_hash').value
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('result').innerHTML = "Помилка: " + data.error;
+            } else {
+                let res = data.result ? "✔️ Хеш співпадає!" : "❌ Хеш не співпадає!";
+                document.getElementById('result').innerHTML = res +
+                  "<br><b>Обчислений хеш:</b> " + data.your_hash +
+                  "<br><b>Ваш хеш:</b> " + data.target_hash;
+            }
+        });
+    });
+    </script>
+</body>
+</html>
